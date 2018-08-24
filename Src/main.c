@@ -83,7 +83,7 @@ RTC_HandleTypeDef hrtc;
 RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
 
-char filename[21];
+char filename[22];
 uint32_t fis;
 
 
@@ -119,17 +119,18 @@ int main(void)
 	/******************************************************************************/
 /*               ADCs interface clock, pin and DMA configuration              */
 /******************************************************************************/
-			HAL_Init();
-			SystemInit();
+		HAL_Init();
+		SystemInit();
 		BSP_LED_Init(LED4);
 		BSP_LED_Init(LED5); 
 		BSP_LED_Init(LED6); 
 		BSP_LED_Init(LED3);
-  /* Enable peripheral clocks */
- //  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2 | RCC_AHB1Periph_GPIOC, ENABLE);
-  //RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_ADC2 | 
-    //                     RCC_APB2Periph_ADC3, ENABLE);
-
+	
+		SystemClock_Config();
+		MX_GPIO_Init();	 
+		MX_RTC_Init();
+		Configure_PD0();
+		
   /* Configure ADC Channel 12 pin as analog input */ 
   //GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
   //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
@@ -209,10 +210,7 @@ int main(void)
 	/* Start ADC1 Software Conversion */ 
 	//ADC_SoftwareStartConv(ADC1);
 		  /* Configure the system clock to 168 MHz */
-			SystemClock_Config();
-			MX_GPIO_Init();	 
-			MX_RTC_Init();
-			Configure_PD0();
+
 	
   /* STM32F4xx HAL library initialization:
        - Configure the Flash prefetch, instruction and Data caches
@@ -237,7 +235,7 @@ int main(void)
 		sDate.Year = 18;
 		HAL_RTC_SetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
     
-
+	memset(filename,'\0',sizeof(filename)/sizeof(filename[0]));
   /*##-1- Link the USB Host disk I/O driver ##################################*/
   if(FATFS_LinkDriver(&USBH_Driver, USBDISKPath) == 0)
   {	
@@ -302,8 +300,7 @@ void Record(uint8_t* writeBuffer){
 	}
 	else
 	{
-		FRESULT res;                                          /* FatFs function common result code */
-  uint32_t byteswritten;                     /* File write/read counts */
+	
 
 	/* Create and Open a new text file object with write access */
       if(f_open(&MyFile, (const char *)writeBuffer, FA_WRITE| FA_CREATE_ALWAYS) != FR_OK) 
@@ -320,15 +317,11 @@ void Record(uint8_t* writeBuffer){
 				//res = f_write(&MyFile, writeBuffer, sizeBuf, (void *)&byteswritten);
 				int count = 0;
 				BSP_LED_On(LED4);
-				while(1){
+				while(record){
 					
 					count = count + 1;
 					uint16_t ADC1val = ADCTripleConvertedValue[2];
 					f_printf(&MyFile, "%d,%d\n",count,ADC1val);
-					
-					if(record == 0){
-						break;
-					}
 				}
 				f_close(&MyFile);
 				f_mount(&USBDISKFatFs, (TCHAR const*)USBDISKPath, 0);
@@ -345,10 +338,13 @@ void Record(uint8_t* writeBuffer){
   */
 static void MSC_Application(void)
 {
-	//if(record){	
+		
 	if(record){
-		fis = sizeof(filename)/sizeof(filename[0]);
-		Record((uint8_t *)"filen1.csv");
+		
+		HAL_RTC_GetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
+		HAL_RTC_GetTime(&hrtc,&sTime, RTC_FORMAT_BIN);
+		sprintf(filename,"%d-%d-%d %d-%d-%d.txt",sDate.Date,sDate.Month,sDate.Year,sTime.Hours,sTime.Minutes,sTime.Seconds);
+		Record((uint8_t *)filename);
 	}
 }
 
@@ -444,6 +440,11 @@ static void SystemClock_Config  (void)
 
   /* SysTick_IRQn interrupt configuration */
 		HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+	
+	  /* ADC peripheral */
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2 | RCC_AHB1Periph_GPIOC, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_ADC2 | 
+                        RCC_APB2Periph_ADC3, ENABLE);
 }
 
 /**
