@@ -210,8 +210,9 @@ int main(void)
 	//ADC_SoftwareStartConv(ADC1);
 		  /* Configure the system clock to 168 MHz */
 			SystemClock_Config();
-			MX_GPIO_Init();	
-			Configure_PD0(); 
+			MX_GPIO_Init();	 
+			MX_RTC_Init();
+			Configure_PD0();
 	
   /* STM32F4xx HAL library initialization:
        - Configure the Flash prefetch, instruction and Data caches
@@ -221,20 +222,20 @@ int main(void)
      */
 
 		//
-	  //MX_RTC_Init();
+	  //
 
   /* Configure LED4 and LED5 */
 	
   /* USER CODE BEGIN 2 */
-	//	sTime.Hours = 23;
-		//sTime.Minutes = 59;
-		//sTime.Seconds = 45;
-		//HAL_RTC_SetTime(&hrtc,&sTime, RTC_FORMAT_BIN);
-		//sDate.Date = 23;
-		//sDate.Month = RTC_MONTH_AUGUST;
-		//sDate.WeekDay = RTC_WEEKDAY_THURSDAY;
-		//sDate.Year = 18;
-		//HAL_RTC_SetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
+		sTime.Hours = 23;
+		sTime.Minutes = 59;
+		sTime.Seconds = 45;
+		HAL_RTC_SetTime(&hrtc,&sTime, RTC_FORMAT_BIN);
+		sDate.Date = 23;
+		sDate.Month = RTC_MONTH_AUGUST;
+		sDate.WeekDay = RTC_WEEKDAY_THURSDAY;
+		sDate.Year = 18;
+		HAL_RTC_SetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
     
 
   /*##-1- Link the USB Host disk I/O driver ##################################*/
@@ -259,7 +260,8 @@ int main(void)
 			//if(!hUSB_Host.device.is_connected){
 						//hUSB_Host.pUser(&hUSB_Host, HOST_USER_DISCONNECTION);
 			//}
-			
+			HAL_RTC_GetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
+			HAL_RTC_GetTime(&hrtc,&sTime, RTC_FORMAT_BIN);
       switch(Appli_state)
       {
       case APPLICATION_START:
@@ -388,6 +390,12 @@ static void SystemClock_Config  (void)
 	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct;
   /* Enable Power Control clock */
   __HAL_RCC_PWR_CLK_ENABLE();
+	
+	HAL_PWR_EnableBkUpAccess();
+ 
+    // Reset Backup domain
+	__HAL_RCC_BACKUPRESET_FORCE();
+	__HAL_RCC_BACKUPRESET_RELEASE();
   
   /* The voltage scaling allows optimizing the power consumption when the device is 
      clocked below the maximum system frequency, to update the voltage scaling value 
@@ -425,9 +433,9 @@ static void SystemClock_Config  (void)
 	
 	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
-	
+	 
 	HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
-	
+	__HAL_RCC_RTC_ENABLE();
 	  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
     /**Configure the Systick 
