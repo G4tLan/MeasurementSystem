@@ -346,7 +346,7 @@ void Record(uint8_t* writeBuffer){
 static void MSC_Application(void)
 {
 	//if(record){	
-	if(1){
+	if(record){
 		fis = sizeof(filename)/sizeof(filename[0]);
 		Record((uint8_t *)"filen1.csv");
 	}
