@@ -331,13 +331,20 @@ void Record(uint8_t* writeBuffer){
 				/* Write data to the text file */
 				//res = f_write(&MyFile, writeBuffer, sizeBuf, (void *)&byteswritten);
 				int count = 0;
+				uint16_t ADCval;
 				BSP_LED_On(LED4);
-				while(record){
-					
-					count = count + 1;
-					uint16_t ADC1val = ADCTripleConvertedValue[2];
-					f_printf(&MyFile, "%d,%d\n",count,ADC1val);
-				}
+				int j = 0;
+				do{
+					for (j = 0; j < 3; j++){
+						BSP_LED_Toggle(LED3);
+						count = count + 1;
+						ADCval = ADCTripleConvertedValue[j] & 0xFFFF;
+						f_printf(&MyFile, "%d,%d\n",count, ADCval);
+						count = count + 1;
+						ADCval = ADCTripleConvertedValue[j] >> 16;
+						f_printf(&MyFile, "%d,%d\n",count,ADCval);
+					}
+				}while(record);
 				f_close(&MyFile);
 				f_mount(&USBDISKFatFs, (TCHAR const*)USBDISKPath, 0);
 				BSP_LED_Off(LED4);
