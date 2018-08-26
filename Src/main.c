@@ -61,8 +61,10 @@ char USBDISKPath[4];          /* USB Host logical drive path */
 USBH_HandleTypeDef hUSB_Host; /* USB Host handle */
 
 //ADC
+#define MEMORY_SIZE 93000
 __IO uint32_t ADCTripleConvertedValue[3];
-
+uint16_t ADCval;
+uint16_t* ADCdata;
 ADC_InitTypeDef       ADC_InitStructure;
 ADC_CommonInitTypeDef ADC_CommonInitStructure;
 DMA_InitTypeDef2       DMA_InitStructure;
@@ -83,8 +85,8 @@ RTC_HandleTypeDef hrtc;
 RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
 
+
 char filename[22];
-uint32_t fis;
 
 
 /* Private function prototypes -----------------------------------------------*/ 
@@ -251,6 +253,7 @@ int main(void)
 		HAL_RTC_SetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
     
 	memset(filename,'\0',sizeof(filename)/sizeof(filename[0]));
+	ADCdata = calloc(MEMORY_SIZE, sizeof(uint16_t));
   /*##-1- Link the USB Host disk I/O driver ##################################*/
   if(FATFS_LinkDriver(&USBH_Driver, USBDISKPath) == 0)
   {	
@@ -331,18 +334,29 @@ void Record(uint8_t* writeBuffer){
 				/* Write data to the text file */
 				//res = f_write(&MyFile, writeBuffer, sizeBuf, (void *)&byteswritten);
 				int count = 0;
-				uint16_t ADCval;
 				BSP_LED_On(LED4);
-				int j = 0;
+				int j,k;
 				do{
-					for (j = 0; j < 3; j++){
-						BSP_LED_Toggle(LED3);
+					k = 0;
+					j = 0;
+					BSP_LED_On(LED3);
+					do{
+						//store data into RAM until full
+						for (j = 0; j < 3; j ++){
+							ADCdata[k] = ADCTripleConvertedValue[j] & 0xFFFF;
+							k = k + 1;
+							if (k >= MEMORY_SIZE){
+								break;
+							}
+							ADCdata[k] = ADCTripleConvertedValue[j] >> 16;
+							k = k + 1;
+						}
+					} while(k < MEMORY_SIZE);
+					//write to USB
+					for (j =0; j < MEMORY_SIZE; j++){
+						BSP_LED_Off(LED3); 
 						count = count + 1;
-						ADCval = ADCTripleConvertedValue[j] & 0xFFFF;
-						f_printf(&MyFile, "%d,%d\n",count, ADCval);
-						count = count + 1;
-						ADCval = ADCTripleConvertedValue[j] >> 16;
-						f_printf(&MyFile, "%d,%d\n",count,ADCval);
+						f_printf(&MyFile, "%d,%d\n",count, ADCdata[j]);
 					}
 				}while(record);
 				f_close(&MyFile);
