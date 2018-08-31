@@ -61,10 +61,10 @@ char USBDISKPath[4];          /* USB Host logical drive path */
 USBH_HandleTypeDef hUSB_Host; /* USB Host handle */
 
 //ADC
-#define MEMORY_SIZE 93000
-__IO uint32_t ADCTripleConvertedValue[3];
+#define MEMORY_SIZE 10000
+__IO  int32_t ADCTripleConvertedValue[3];
 uint16_t ADCval;
-uint16_t* ADCdata;
+uint16_t ADCdata[MEMORY_SIZE];
 ADC_InitTypeDef       ADC_InitStructure;
 ADC_CommonInitTypeDef ADC_CommonInitStructure;
 DMA_InitTypeDef2       DMA_InitStructure;
@@ -84,6 +84,7 @@ int errorbreak = 0;
 RTC_HandleTypeDef hrtc;
 RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
+int timeTaken;
 
 
 char filename[22];
@@ -242,9 +243,9 @@ int main(void)
   /* Configure LED4 and LED5 */
 	
   /* USER CODE BEGIN 2 */
-		sTime.Hours = 23;
-		sTime.Minutes = 59;
-		sTime.Seconds = 45;
+		sTime.Hours = 0;
+		sTime.Minutes = 0;
+		sTime.Seconds = 0;
 		HAL_RTC_SetTime(&hrtc,&sTime, RTC_FORMAT_BIN);
 		sDate.Date = 23;
 		sDate.Month = RTC_MONTH_AUGUST;
@@ -253,7 +254,7 @@ int main(void)
 		HAL_RTC_SetDate(&hrtc,&sDate, RTC_FORMAT_BIN);
     
 	memset(filename,'\0',sizeof(filename)/sizeof(filename[0]));
-	ADCdata = calloc(MEMORY_SIZE, sizeof(uint16_t));
+	//ADCdata = calloc(MEMORY_SIZE, sizeof(uint16_t));
   /*##-1- Link the USB Host disk I/O driver ##################################*/
   if(FATFS_LinkDriver(&USBH_Driver, USBDISKPath) == 0)
   {	
@@ -283,6 +284,7 @@ int main(void)
       case APPLICATION_START:
         Appli_state = APPLICATION_IDLE;
         MSC_Application();
+			free(ADCdata);
         break;
       
 			case UNLINK_DRIVE:
@@ -335,30 +337,73 @@ void Record(uint8_t* writeBuffer){
 				//res = f_write(&MyFile, writeBuffer, sizeBuf, (void *)&byteswritten);
 				int count = 0;
 				BSP_LED_On(LED4);
-				int j,k;
+				int j,k,l;
+				int averager = 20;
 				do{
 					k = 0;
 					j = 0;
+					l = 0;
 					BSP_LED_On(LED3);
+					uint16_t val;
+					uint32_t sum;
 					do{
 						//store data into RAM until full
 						for (j = 0; j < 3; j ++){
+							if (k >= MEMORY_SIZE){
+								break;
+							}
 							ADCdata[k] = ADCTripleConvertedValue[j] & 0xFFFF;
-							k = k + 1;
+						
+						//	l = l +1;
+							//val = ADCTripleConvertedValue[j] & 0xFFFF;
+							//sum = sum + val/16;
+							//count = count + 1;
+							//f_printf(&MyFile, "%d,%d\n",count, val);
+							//count = count + 1;
+							//if( l%averager == 0){
+								//if(k < MEMORY_SIZE && (k + 1) < MEMORY_SIZE) {
+									//ADCdata[k] = ADCTripleConvertedValue[j] & 0xFFFF;
+									//k = k + 1;
+									//ADCdata[k] = ADCTripleConvertedValue[j] >> 16;
+									//sum = 0;
+								//}
+								k  = k + 1;
+								//count = count + 1;
+								//f_printf(&MyFile, "%d,%d\n",count, val);
+								//sum = 0;
+							//}
 							if (k >= MEMORY_SIZE){
 								break;
 							}
 							ADCdata[k] = ADCTripleConvertedValue[j] >> 16;
+							//val = ADCTripleConvertedValue[j] >> 16;
+							//sum = sum + val/16;
+							//if( k%16 == 0){ 
+								//count = count + 1;
+								//f_printf(&MyFile, "%d,%d\n",count, val);
+								//sum = 0;
+							//}
 							k = k + 1;
 						}
 					} while(k < MEMORY_SIZE);
 					//write to USB
+						BSP_LED_Off(LED3);
+				//	uint16_t add = 0;
 					for (j =0; j < MEMORY_SIZE; j++){
-						BSP_LED_Off(LED3); 
-						count = count + 1;
-						f_printf(&MyFile, "%d,%d\n",count, ADCdata[j]);
+						//if(j % averager ==  0){
+							count = count + 1;
+							f_printf(&MyFile, "%d,%d\n",count, ADCdata[j]);
+						//} else {
+							//add = 
+						//}
+						 //ADCdata[(count)%MEMORY_SIZE] = ADCTripleConvertedValu[j] >> 16;
+						 //ADCdata[(count + 1)%MEMORY_SIZE] = ADCTripleConvertedValue[j] & 0xFFFF;
+						//if(record == 0)
+							// break;
 					}
-				}while(record);
+				}while(record); 
+				BSP_LED_Off(LED3);
+				HAL_RTC_GetTime(&hrtc,&sTime, RTC_FORMAT_BIN);
 				f_close(&MyFile);
 				f_mount(&USBDISKFatFs, (TCHAR const*)USBDISKPath, 0);
 				BSP_LED_Off(LED4);
